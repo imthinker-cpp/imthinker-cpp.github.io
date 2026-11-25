@@ -374,11 +374,14 @@
  .wd-item.active { transform: scale(1.15) !important; }
  .wd-item.active::before { inset: -6px !important; }
  .floating-spotify-dock { position: relative !important; order: 3 !important; left: auto !important; right: auto !important; top: auto !important; width: 100% !important; max-width: min(355px, calc(100vw - 24px)) !important; margin: 0 auto 35px auto !important; }
- body::before { background: url('assets/backgrund.png') center/cover no-repeat !important; filter: blur(4px) brightness(1.15) !important; opacity: 0.25 !important; position: fixed !important; inset: -15px !important; z-index: -2 !important; }
+ body::before { background: url('assets/backgrund.png') center/cover no-repeat !important; filter: blur(2px) brightness(1.15) !important; opacity: 0.24 !important; position: fixed !important; inset: -10px !important; z-index: -2 !important; transform: translateZ(0) !important; }
  body::after { content: '' !important; position: fixed !important; inset: 0 !important; background: radial-gradient(circle at center, rgba(255, 255, 255, 0.4) 35%, rgba(232, 236, 244, 0.86) 100%) !important; pointer-events: none !important; z-index: -1 !important; }
- .discord-card-wrapper::before { display: block !important; animation: none !important; opacity: 0.14 !important; filter: blur(22px) !important; }
+ .discord-card-wrapper::before { display: block !important; animation: none !important; background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 70%) !important; opacity: 0.5 !important; filter: none !important; transform: translate(-50%, -50%) scale(2.4) !important; will-change: auto !important; }
  .discord-card::after, .floating-spotify-dock::after, .avatar-container::after { animation: none !important; background: none !important; -webkit-mask: none !important; mask: none !important; border: 1px solid rgba(0, 0, 0, 0.12) !important; padding: 0 !important; filter: none !important; }
- /* monster shines cleanly across desktop & mobile */
+ .floating-spotify-dock, .badge-tag, .action-btn, .avatar-thought-bubble, .banner-secret-badge, .aura-slot::after, .busy-modal, .anti-theft-modal, .sp-vol-slider { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+ @keyframes monsterWhiteShineLite { 0%, 75%, 100% { filter: brightness(1); opacity: 0.96; } 85% { filter: brightness(1.38) contrast(1.08); opacity: 1; } 92% { filter: brightness(1.14); opacity: 0.98; } }
+ .monster-top, .monster-bottom { animation: monsterWhiteShineLite 5s infinite ease-in-out !important; will-change: opacity, filter !important; }
+ .discord-card.is-corrupted, .bio-panel.is-hacked { animation: none !important; }
  .wd-item.active::before, .wd-item.active::after { animation: none !important; }
  .avatar-shine::before { display: none !important; animation: none !important; }
  .card-mouse-glow { display: none !important; }
@@ -391,8 +394,10 @@
  img { -webkit-user-drag: none; user-drag: none; }
  #dock-tip { position: fixed; z-index: 100000; pointer-events: none; opacity: 0; transform: translate(calc(-100% + 6px), -50%); transition: opacity 0.2s, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1); background: rgba(255, 255, 255, 0.96); border: 1px solid rgba(0, 0, 0, 0.14); color: #111318; font: 700 0.62rem 'Fira Code', monospace; letter-spacing: 0.8px; padding: 4px 9px; border-radius: 5px; white-space: nowrap; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.14); }
  #dock-tip.on { opacity: 1; transform: translate(-100%, -50%); }
- #dock-tip.r { transform: translate(-6px, -50%); }
+#dock-tip.r { transform: translate(-6px, -50%); }
  #dock-tip.r.on { transform: translate(0, -50%); }
+ #scorpion-fx-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 99995; transform: translateZ(0); will-change: transform; contain: strict; }
+ @media (pointer: fine) { html, body, *, *::before, *::after { cursor: none !important; } }
   </style>
 </head>
 <body>
@@ -776,6 +781,8 @@
     <div class="lyrics-cinematic-stage">
         <div class="lyric-text-element" id="lyric-text"></div>
     </div>
+
+    <canvas id="scorpion-fx-canvas" aria-hidden="true"></canvas>
 
 <script>
         let bioOpen = false;
@@ -1897,6 +1904,694 @@ print("hello, Ｉ＇ｍ   Ｔｈｉｎｋｅｒ¸")
         })();
 
 ;(function(){addEventListener('x75459800',function(){if(typeof triggerTheftAlert==='function')triggerTheftAlert()})})();
+
+        (function () {
+            const canvas = document.getElementById('scorpion-fx-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d', { alpha: true });
+            if (!ctx) return;
+
+            const isFinePointer = matchMedia('(pointer: fine)').matches;
+            let w = innerWidth, h = innerHeight;
+            let dpr = Math.min(devicePixelRatio || 1, isFinePointer ? 1.5 : 1.15);
+            let rafId = 0;
+
+            function resize() {
+                w = innerWidth;
+                h = innerHeight;
+                dpr = Math.min(devicePixelRatio || 1, isFinePointer ? 1.5 : 1.15);
+                canvas.width = Math.floor(w * dpr);
+                canvas.height = Math.floor(h * dpr);
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+            resize();
+            addEventListener('resize', resize, { passive: true });
+
+            const mouse = { x: w * 0.5, y: h * 0.5, active: false };
+            const scorpion = { x: w * 0.5, y: h * 0.5, angle: -Math.PI * 0.5, walk: 0, idle: 0, kick: 0, stepDist: 0, stepToggle: 0 };
+            const tracks = [];
+            const impacts = [];
+            const miniScorpions = [];
+            const drops = [];
+            const jumpers = [];
+
+            function wakeLoop() {
+                if (!rafId && !document.hidden) {
+                    rafId = requestAnimationFrame(loop);
+                }
+            }
+
+            function spawnJumper() {
+                const ov = document.getElementById('enter-overlay');
+                if (ov && !ov.classList.contains('hidden')) return;
+                if (document.hidden) return;
+
+                const card = document.getElementById('main-discord-card');
+                let minX = w * 0.12, maxX = w * 0.88, baseTop = Math.min(h * 0.25, 130);
+                if (card) {
+                    const rect = card.getBoundingClientRect();
+                    minX = Math.max(45, rect.left - (isFinePointer ? 110 : 12));
+                    maxX = Math.min(w - 45, rect.right + (isFinePointer ? 140 : 12));
+                    baseTop = Math.max(95, Math.min(h * 0.45, rect.top + 55));
+                }
+
+                const count = 4 + Math.floor(Math.random() * 2);
+                const span = Math.max(80, maxX - minX);
+                const slotW = span / count;
+
+                for (let i = 0; i < count; i++) {
+                    const sx = Math.max(36, Math.min(w - 36, minX + slotW * (i + 0.5) + (Math.random() - 0.5) * slotW * 0.55));
+                    const targetDropY = Math.max(105, Math.min(h * 0.62, baseTop + Math.random() * 145));
+                    const jumpAngle = Math.PI * 0.5 + (Math.random() - 0.5) * 1.3;
+                    const jumpDist = 95 + Math.random() * 75;
+
+                    jumpers.push({
+                        x: sx,
+                        y: -28 - i * 22,
+                        anchorX: sx,
+                        anchorY: 0,
+                        dropY: targetDropY,
+                        swayPhase: Math.random() * Math.PI * 2,
+                        angle: Math.PI * 0.5,
+                        walk: 0,
+                        idle: Math.random() * 6,
+                        kick: 0,
+                        scale: 1.28 + Math.random() * 0.28,
+                        alpha: 1,
+                        lift: 0,
+                        phase: 'drop',
+                        t: 0,
+                        jumpStartX: sx,
+                        jumpStartY: targetDropY,
+                        jumpEndX: Math.max(35, Math.min(w - 35, sx + Math.cos(jumpAngle) * jumpDist)),
+                        jumpEndY: Math.max(70, Math.min(h - 40, targetDropY + Math.sin(jumpAngle) * jumpDist)),
+                        jumpAngle,
+                        threadAlpha: 0.55
+                    });
+                }
+                if (jumpers.length > 10) jumpers.splice(0, jumpers.length - 10);
+                wakeLoop();
+            }
+
+            setInterval(spawnJumper, 5000);
+
+            function stingBurst(x, y) {
+                const cracks = [];
+                const crackCount = isFinePointer ? (6 + Math.floor(Math.random() * 4)) : 5;
+                for (let i = 0; i < crackCount; i++) {
+                    const a = (Math.PI * 2 * i) / crackCount + (Math.random() - 0.5) * 0.35;
+                    cracks.push({ a, len: 10 + Math.random() * 14, mid: (Math.random() - 0.5) * 4.5 });
+                }
+                impacts.push({ x, y, r: 3, maxR: 26 + Math.random() * 10, cracks, alpha: 0.78, age: 0, life: 40 });
+                if (impacts.length > 10) impacts.shift();
+
+                const miniCount = 4 + Math.floor(Math.random() * 2);
+                for (let i = 0; i < miniCount; i++) {
+                    const ang = (Math.PI * 2 * i) / miniCount + (Math.random() - 0.5) * 0.8;
+                    const spd = 2.2 + Math.random() * 2.4;
+                    miniScorpions.push({
+                        x: x + Math.cos(ang) * 6,
+                        y: y + Math.sin(ang) * 6,
+                        vx: Math.cos(ang) * spd,
+                        vy: Math.sin(ang) * spd,
+                        turn: (Math.random() - 0.5) * 0.04,
+                        angle: ang,
+                        walk: Math.random() * 6,
+                        idle: Math.random() * 6,
+                        scale: 0.68 + Math.random() * 0.22,
+                        alpha: 0.96,
+                        age: 0,
+                        life: 105 + Math.random() * 30
+                    });
+                }
+                if (miniScorpions.length > 18) miniScorpions.splice(0, miniScorpions.length - 18);
+
+                const dropCount = isFinePointer ? 18 : 10;
+                for (let i = 0; i < dropCount; i++) {
+                    const ang = Math.random() * Math.PI * 2;
+                    const spd = 1.6 + Math.random() * 5.0;
+                    drops.push({
+                        x, y,
+                        vx: Math.cos(ang) * spd,
+                        vy: Math.sin(ang) * spd,
+                        len: 3 + Math.random() * 7,
+                        size: 0.9 + Math.random() * 2.0,
+                        alpha: 0.9,
+                        decay: 0.018 + Math.random() * 0.016
+                    });
+                }
+                if (drops.length > 90) drops.splice(0, drops.length - 90);
+                scorpion.kick = 1;
+                wakeLoop();
+            }
+
+            addEventListener('pointermove', (e) => {
+                if (e.pointerType !== 'mouse' && !isFinePointer) return;
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+                if (!mouse.active) {
+                    mouse.active = true;
+                    scorpion.x = e.clientX;
+                    scorpion.y = e.clientY;
+                }
+                wakeLoop();
+            }, { passive: true });
+
+            addEventListener('pointerdown', (e) => {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+                if (e.pointerType === 'mouse' && isFinePointer && !mouse.active) {
+                    mouse.active = true;
+                    scorpion.x = e.clientX;
+                    scorpion.y = e.clientY;
+                }
+                stingBurst(e.clientX, e.clientY);
+            }, { passive: true });
+
+            addEventListener('mouseleave', () => {
+                if (isFinePointer) mouse.active = false;
+            }, { passive: true });
+
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) wakeLoop();
+            });
+
+            function drawImpact(im) {
+                im.age++;
+                im.r += (im.maxR - im.r) * 0.22;
+                im.alpha = Math.max(0, 0.78 * (1 - im.age / im.life));
+                if (im.alpha <= 0.01) return false;
+
+                ctx.save();
+                ctx.globalAlpha = im.alpha;
+                ctx.strokeStyle = '#07080a';
+                ctx.fillStyle = '#07080a';
+
+                ctx.lineWidth = 1.1;
+                ctx.beginPath();
+                ctx.arc(im.x, im.y, im.r, 0, Math.PI * 2);
+                ctx.stroke();
+
+                const frac = Math.min(1, im.age / 8);
+                ctx.lineWidth = 1.25;
+                for (let i = 0; i < im.cracks.length; i++) {
+                    const c = im.cracks[i];
+                    const l = c.len * frac;
+                    const mx = im.x + Math.cos(c.a) * (l * 0.5) - Math.sin(c.a) * c.mid;
+                    const my = im.y + Math.sin(c.a) * (l * 0.5) + Math.cos(c.a) * c.mid;
+                    const ex = im.x + Math.cos(c.a) * l;
+                    const ey = im.y + Math.sin(c.a) * l;
+                    ctx.beginPath();
+                    ctx.moveTo(im.x, im.y);
+                    ctx.lineTo(mx, my);
+                    ctx.lineTo(ex, ey);
+                    ctx.stroke();
+                }
+
+                ctx.beginPath();
+                ctx.arc(im.x, im.y, 2.4 * (1 - im.age / im.life), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                return true;
+            }
+
+            const LEG_SPECS = [
+                { bx: 3.0, by: 2.8, a1: -0.82, a2: -0.45, l1: 6.2, l2: 6.4, phase: 0 },
+                { bx: 1.0, by: 3.2, a1: -1.35, a2: -1.05, l1: 6.8, l2: 7.0, phase: Math.PI },
+                { bx: -1.1, by: 3.1, a1: -1.88, a2: -1.68, l1: 7.0, l2: 7.4, phase: 0 },
+                { bx: -3.2, by: 2.7, a1: -2.35, a2: -2.22, l1: 6.8, l2: 7.6, phase: Math.PI }
+            ];
+            const PLATES = [
+                { x: -1.8, rx: 2.35, ry: 3.45 },
+                { x: -3.7, rx: 2.2, ry: 3.2 },
+                { x: -5.5, rx: 2.0, ry: 2.85 },
+                { x: -7.2, rx: 1.8, ry: 2.4 },
+                { x: -8.7, rx: 1.55, ry: 1.9 },
+                { x: -10.0, rx: 1.35, ry: 1.45 }
+            ];
+
+            function drawScorpion(sx, sy, angle, walkPhase, idlePhase, kick, scale, alpha, isMain, lift = 0) {
+                const sc = scale * (1 + kick * 0.14 + lift * 0.011);
+
+                if (alpha > 0.2) {
+                    const shScale = sc * (1 - Math.min(0.28, lift * 0.005));
+                    ctx.save();
+                    ctx.globalAlpha = alpha * Math.max(0.08, 0.22 - lift * 0.003);
+                    ctx.translate(sx + (3 + lift * 0.42) * scale, sy + (5 + lift * 0.65) * scale);
+                    ctx.scale(shScale, shScale);
+                    ctx.rotate(angle);
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.ellipse(-2.5, 0, 11.2, 5.0, 0, 0, Math.PI * 2);
+                    ctx.ellipse(12.4, -5.8, 4.2, 2.2, 0.3, 0, Math.PI * 2);
+                    ctx.ellipse(12.4, 5.8, 4.2, 2.2, -0.3, 0, Math.PI * 2);
+                    ctx.ellipse(-13.2, -6.5, 5.2, 3.0, -0.7, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.translate(sx, sy - lift * 0.55);
+                ctx.scale(sc, sc);
+                ctx.rotate(angle);
+
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                for (let side = -1; side <= 1; side += 2) {
+                    for (let i = 0; i < LEG_SPECS.length; i++) {
+                        const lg = LEG_SPECS[i];
+                        const swing = Math.sin(walkPhase + lg.phase + (side > 0 ? 0 : Math.PI)) * 0.24 + Math.sin(idlePhase + i) * 0.035;
+                        const a1 = lg.a1 * side + swing * side;
+                        const a2 = lg.a2 * side + swing * 0.72 * side;
+                        const jx = lg.bx + Math.cos(a1) * lg.l1;
+                        const jy = lg.by * side + Math.sin(a1) * lg.l1;
+                        const mx = jx + Math.cos(a2) * (lg.l2 * 0.62);
+                        const my = jy + Math.sin(a2) * (lg.l2 * 0.62);
+                        const tx = jx + Math.cos(a2) * lg.l2;
+                        const ty = jy + Math.sin(a2) * lg.l2;
+
+                        ctx.strokeStyle = '#07080b';
+                        ctx.lineWidth = 2.15;
+                        ctx.beginPath();
+                        ctx.moveTo(lg.bx, lg.by * side);
+                        ctx.lineTo(jx, jy);
+                        ctx.stroke();
+
+                        ctx.lineWidth = 1.45;
+                        ctx.beginPath();
+                        ctx.moveTo(jx, jy);
+                        ctx.lineTo(mx, my);
+                        ctx.stroke();
+
+                        ctx.lineWidth = 0.8;
+                        ctx.beginPath();
+                        ctx.moveTo(mx, my);
+                        ctx.lineTo(tx, ty);
+                        ctx.stroke();
+
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+                        ctx.lineWidth = 0.42;
+                        ctx.beginPath();
+                        ctx.moveTo(lg.bx, lg.by * side);
+                        ctx.lineTo(jx, jy);
+                        ctx.lineTo(mx, my);
+                        ctx.stroke();
+                    }
+                }
+
+                const snap = Math.max(0.05, 0.44 + Math.sin(idlePhase * 1.4) * 0.12 - kick * 0.38);
+                for (let side = -1; side <= 1; side += 2) {
+                    const ax = 7.6;
+                    const ay = 6.8 * side;
+                    const px = 12.2;
+                    const py = 6.4 * side;
+
+                    ctx.strokeStyle = '#07080b';
+                    ctx.lineWidth = 3.1;
+                    ctx.beginPath();
+                    ctx.moveTo(3.8, 2.5 * side);
+                    ctx.lineTo(ax, ay);
+                    ctx.stroke();
+
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(ax, ay);
+                    ctx.lineTo(px, py);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+                    ctx.lineWidth = 0.55;
+                    ctx.beginPath();
+                    ctx.moveTo(3.8, 2.5 * side);
+                    ctx.lineTo(ax, ay);
+                    ctx.lineTo(px, py);
+                    ctx.stroke();
+
+                    const palmX = px + 1.8;
+                    const palmY = py - 0.8 * side;
+
+                    ctx.fillStyle = '#07080b';
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)';
+                    ctx.lineWidth = 0.55;
+                    ctx.beginPath();
+                    ctx.ellipse(palmX, palmY, 3.8, 2.2, -0.35 * side, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#262b36';
+                    ctx.beginPath();
+                    ctx.ellipse(palmX - 0.4, palmY - 0.35 * side, 1.8, 0.8, -0.35 * side, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#07080b';
+                    ctx.beginPath();
+                    ctx.moveTo(palmX + 2.4, palmY + 0.9 * side);
+                    ctx.quadraticCurveTo(palmX + 6.4, palmY + (1.7 + snap * 1.4) * side, palmX + 7.6, palmY - (0.3 - snap * 1.9) * side);
+                    ctx.quadraticCurveTo(palmX + 5.2, palmY + (0.6 + snap * 0.8) * side, palmX + 2.2, palmY - 0.1 * side);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.moveTo(palmX + 2.0, palmY - 0.6 * side);
+                    ctx.quadraticCurveTo(palmX + 5.2, palmY - (1.8 + snap * 1.1) * side, palmX + 6.8, palmY - (0.7 + snap * 1.5) * side);
+                    ctx.quadraticCurveTo(palmX + 4.4, palmY - (0.7 + snap * 0.4) * side, palmX + 1.8, palmY - 0.1 * side);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+
+                for (let i = PLATES.length - 1; i >= 0; i--) {
+                    const pl = PLATES[i];
+                    ctx.fillStyle = '#08090c';
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+                    ctx.lineWidth = 0.5;
+                    ctx.beginPath();
+                    ctx.ellipse(pl.x, 0, pl.rx, pl.ry, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#222630';
+                    ctx.beginPath();
+                    ctx.ellipse(pl.x, -pl.ry * 0.18, pl.rx * 0.58, pl.ry * 0.42, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.fillStyle = '#08090c';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.26)';
+                ctx.lineWidth = 0.55;
+                ctx.beginPath();
+                ctx.ellipse(2.1, 0, 4.2, 3.45, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#252934';
+                ctx.beginPath();
+                ctx.ellipse(1.9, -0.45, 2.3, 1.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#07080b';
+                ctx.beginPath();
+                ctx.ellipse(6.2, -0.8, 1.0, 0.55, 0.2, 0, Math.PI * 2);
+                ctx.ellipse(6.2, 0.8, 1.0, 0.55, -0.2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
+                ctx.beginPath();
+                ctx.arc(3.0, -0.9, 0.6, 0, Math.PI * 2);
+                ctx.arc(3.0, 0.9, 0.6, 0, Math.PI * 2);
+                ctx.fill();
+
+                const sway = Math.sin(idlePhase * 0.85) * 1.1;
+                const whip = kick * 6.0;
+                const t0x = -10.2, t0y = 0;
+                const t1x = -12.8 + whip * 0.15, t1y = -1.4 + sway * 0.2;
+                const t2x = -15.4 + whip * 0.35, t2y = -3.8 + sway * 0.45;
+                const t3x = -16.8 + whip * 0.65, t3y = -7.2 + sway * 0.7;
+                const t4x = -15.4 + whip * 1.0,  t4y = -10.8 + sway * 0.9;
+                const t5x = -11.8 + whip * 1.35, t5y = -13.2 + sway * 1.05;
+                const segs = [[t0x, t0y, t1x, t1y, 3.45], [t1x, t1y, t2x, t2y, 3.15], [t2x, t2y, t3x, t3y, 2.85], [t3x, t3y, t4x, t4y, 2.6], [t4x, t4y, t5x, t5y, 2.35]];
+
+                for (let i = 0; i < segs.length; i++) {
+                    const s = segs[i];
+                    ctx.strokeStyle = '#07080b';
+                    ctx.lineWidth = s[4];
+                    ctx.beginPath();
+                    ctx.moveTo(s[0], s[1]);
+                    ctx.lineTo(s[2], s[3]);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)';
+                    ctx.lineWidth = 0.55;
+                    ctx.beginPath();
+                    ctx.moveTo(s[0], s[1]);
+                    ctx.lineTo(s[2], s[3]);
+                    ctx.stroke();
+                }
+
+                const gx = -9.0 + whip * 1.55;
+                const gy = -13.4 + sway * 1.1;
+                ctx.fillStyle = '#08090c';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+                ctx.lineWidth = 0.5;
+                ctx.beginPath();
+                ctx.ellipse(gx, gy, 2.6, 1.65, 0.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#262b36';
+                ctx.beginPath();
+                ctx.ellipse(gx - 0.3, gy - 0.3, 1.2, 0.6, 0.2, 0, Math.PI * 2);
+                ctx.fill();
+
+                const stTipX = gx + 5.8 + whip * 0.35;
+                const stTipY = gy + 2.5;
+                ctx.fillStyle = '#07080b';
+                ctx.beginPath();
+                ctx.moveTo(gx + 1.8, gy - 0.6);
+                ctx.quadraticCurveTo(gx + 4.8, gy - 0.1, stTipX, stTipY);
+                ctx.quadraticCurveTo(gx + 3.8, gy + 0.8, gx + 1.6, gy + 0.7);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.restore();
+
+                if (isMain) {
+                    ctx.save();
+                    ctx.fillStyle = '#07080b';
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+                    ctx.lineWidth = 0.8;
+                    ctx.beginPath();
+                    ctx.arc(mouse.x, mouse.y, 1.7, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+
+            function loop() {
+                rafId = 0;
+                ctx.clearRect(0, 0, w, h);
+
+                for (let i = tracks.length - 1; i >= 0; i--) {
+                    const tr = tracks[i];
+                    tr.alpha -= 0.006;
+                    if (tr.alpha <= 0.005) {
+                        tracks.splice(i, 1);
+                        continue;
+                    }
+                    ctx.save();
+                    ctx.translate(tr.x, tr.y);
+                    ctx.rotate(tr.a);
+                    ctx.strokeStyle = `rgba(12, 14, 18, ${tr.alpha.toFixed(3)})`;
+                    ctx.lineWidth = 1;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(-1.2, -1);
+                    ctx.lineTo(1.2, 0);
+                    ctx.lineTo(-1.2, 1);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                for (let i = impacts.length - 1; i >= 0; i--) {
+                    if (!drawImpact(impacts[i])) impacts.splice(i, 1);
+                }
+
+                for (let i = miniScorpions.length - 1; i >= 0; i--) {
+                    const ms = miniScorpions[i];
+                    ms.age++;
+                    const spd = Math.hypot(ms.vx, ms.vy);
+                    if (spd > 0.1) {
+                        const ca = Math.atan2(ms.vy, ms.vx) + ms.turn;
+                        ms.vx = Math.cos(ca) * spd * 0.945;
+                        ms.vy = Math.sin(ca) * spd * 0.945;
+                        ms.angle = ca;
+                    }
+                    ms.x += ms.vx;
+                    ms.y += ms.vy;
+                    ms.walk += 0.45;
+                    ms.idle += 0.1;
+                    const fadeStart = ms.life * 0.45;
+                    if (ms.age > fadeStart) {
+                        ms.alpha = Math.max(0, 0.96 * (1 - (ms.age - fadeStart) / (ms.life - fadeStart)));
+                    }
+                    if (ms.alpha <= 0.02) {
+                        miniScorpions.splice(i, 1);
+                        continue;
+                    }
+                    drawScorpion(ms.x, ms.y, ms.angle, ms.walk, ms.idle, 0, ms.scale, ms.alpha, false, 0);
+                }
+
+                for (let i = drops.length - 1; i >= 0; i--) {
+                    const p = drops[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vx *= 0.9;
+                    p.vy *= 0.9;
+                    p.alpha -= p.decay;
+                    if (p.alpha <= 0.01) {
+                        drops.splice(i, 1);
+                        continue;
+                    }
+                    ctx.save();
+                    ctx.globalAlpha = p.alpha;
+                    ctx.strokeStyle = '#07080b';
+                    ctx.fillStyle = '#07080b';
+                    ctx.lineWidth = p.size * 0.7;
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x - p.vx * (p.len * 0.4), p.y - p.vy * (p.len * 0.4));
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * 0.85, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                for (let i = jumpers.length - 1; i >= 0; i--) {
+                    const jp = jumpers[i];
+                    jp.t++;
+                    jp.idle += 0.11;
+
+                    if (jp.phase === 'drop') {
+                        jp.y += (jp.dropY - jp.y) * 0.12;
+                        jp.swayPhase += 0.08;
+                        jp.x = jp.anchorX + Math.sin(jp.swayPhase) * 8;
+                        jp.angle = Math.PI * 0.5 + Math.cos(jp.swayPhase) * 0.16;
+                        jp.walk += 0.25;
+                        if (Math.abs(jp.dropY - jp.y) < 2) {
+                            jp.y = jp.dropY;
+                            jp.phase = 'dangle';
+                            jp.t = 0;
+                        }
+                    } else if (jp.phase === 'dangle') {
+                        jp.swayPhase += 0.075;
+                        jp.x = jp.anchorX + Math.sin(jp.swayPhase) * 10;
+                        jp.y = jp.dropY + Math.abs(Math.cos(jp.swayPhase)) * 3;
+                        jp.walk += 0.14;
+                        if (jp.t > 48) {
+                            let diff = jp.jumpAngle - jp.angle;
+                            while (diff > Math.PI) diff -= Math.PI * 2;
+                            while (diff < -Math.PI) diff += Math.PI * 2;
+                            jp.angle += diff * 0.18;
+                            jp.kick = Math.min(0.6, (jp.t - 48) / 16);
+                        } else {
+                            jp.angle = Math.PI * 0.5 + Math.cos(jp.swayPhase) * 0.18;
+                        }
+                        if (jp.t >= 65) {
+                            jp.phase = 'jump';
+                            jp.t = 0;
+                            jp.jumpStartX = jp.x;
+                            jp.jumpStartY = jp.y;
+                            jp.kick = 1;
+                        }
+                    } else if (jp.phase === 'jump') {
+                        jp.threadAlpha = Math.max(0, jp.threadAlpha - 0.08);
+                        const p = Math.min(1, jp.t / 34);
+                        jp.x = jp.jumpStartX + (jp.jumpEndX - jp.jumpStartX) * p;
+                        jp.y = jp.jumpStartY + (jp.jumpEndY - jp.jumpStartY) * p;
+                        jp.lift = Math.sin(p * Math.PI) * 34;
+                        jp.walk += 0.65;
+                        jp.kick *= 0.9;
+                        let diff = jp.jumpAngle - jp.angle;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        jp.angle += diff * 0.25;
+                        if (p >= 1) {
+                            jp.phase = 'land';
+                            jp.t = 0;
+                            jp.lift = 0;
+                            const dustN = isFinePointer ? 6 : 3;
+                            for (let d = 0; d < dustN; d++) {
+                                const a = Math.random() * Math.PI * 2;
+                                const s = 0.9 + Math.random() * 2.2;
+                                drops.push({
+                                    x: jp.x,
+                                    y: jp.y,
+                                    vx: Math.cos(a) * s,
+                                    vy: Math.sin(a) * s,
+                                    len: 2 + Math.random() * 4,
+                                    size: 0.7 + Math.random() * 1.1,
+                                    alpha: 0.65,
+                                    decay: 0.025 + Math.random() * 0.015
+                                });
+                            }
+                        }
+                    } else if (jp.phase === 'land') {
+                        jp.kick *= 0.85;
+                        jp.x += Math.cos(jp.angle) * 0.7;
+                        jp.y += Math.sin(jp.angle) * 0.7;
+                        jp.walk += 0.32;
+                        if (jp.t > 25) {
+                            jp.alpha = Math.max(0, 1 - (jp.t - 25) / 60);
+                        }
+                        if (jp.alpha <= 0.01) {
+                            jumpers.splice(i, 1);
+                            continue;
+                        }
+                    }
+
+                    if (jp.threadAlpha > 0.01) {
+                        ctx.save();
+                        ctx.strokeStyle = `rgba(9, 10, 13, ${jp.threadAlpha.toFixed(3)})`;
+                        ctx.lineWidth = 0.9;
+                        ctx.beginPath();
+                        ctx.moveTo(jp.anchorX, jp.anchorY);
+                        ctx.lineTo(jp.x - Math.cos(jp.angle) * (11 * jp.scale), jp.y - Math.sin(jp.angle) * (11 * jp.scale));
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+
+                    drawScorpion(jp.x, jp.y, jp.angle, jp.walk, jp.idle, jp.kick, jp.scale, jp.alpha, false, jp.lift);
+                }
+
+                if (mouse.active && isFinePointer) {
+                    const dx = mouse.x - scorpion.x;
+                    const dy = mouse.y - scorpion.y;
+                    const dist = Math.hypot(dx, dy);
+
+                    const stepX = dx * 0.25;
+                    const stepY = dy * 0.25;
+                    scorpion.x += stepX;
+                    scorpion.y += stepY;
+                    scorpion.idle += 0.06;
+                    scorpion.kick *= 0.82;
+
+                    if (dist > 0.6) {
+                        const targetAng = Math.atan2(dy, dx);
+                        let diff = targetAng - scorpion.angle;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        scorpion.angle += diff * 0.26;
+                        scorpion.walk += Math.min(dist * 0.085, 0.58);
+
+                        scorpion.stepDist += Math.hypot(stepX, stepY);
+                        if (scorpion.stepDist >= 10) {
+                            scorpion.stepDist = 0;
+                            scorpion.stepToggle++;
+                            const perp = scorpion.angle + Math.PI * 0.5;
+                            const side = (scorpion.stepToggle % 2 === 0) ? 1 : -1;
+                            tracks.push({
+                                x: scorpion.x + Math.cos(perp) * 7.5 * side,
+                                y: scorpion.y + Math.sin(perp) * 7.5 * side,
+                                a: scorpion.angle,
+                                alpha: 0.22
+                            });
+                            if (tracks.length > 32) tracks.shift();
+                        }
+                    }
+
+                    drawScorpion(scorpion.x, scorpion.y, scorpion.angle, scorpion.walk, scorpion.idle, scorpion.kick, 1.38, 1, true, 0);
+                }
+
+                const busy = (mouse.active && isFinePointer) || tracks.length || impacts.length || miniScorpions.length || drops.length || jumpers.length;
+                if (busy && !document.hidden) {
+                    rafId = requestAnimationFrame(loop);
+                }
+            }
+        })();
 </script>
-</body>
-</html>
