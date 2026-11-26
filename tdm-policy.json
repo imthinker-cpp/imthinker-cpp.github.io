@@ -1,0 +1,19 @@
+{
+  "@context": "https://www.w3.org/ns/tdmrep.jsonld",
+  "profile": "http://www.w3.org/ns/tdmrep",
+  "assigner": {
+    "name": "imthinker",
+    "url": "https://imthinker-cpp.github.io"
+  },
+  "permission": [],
+  "prohibition": [
+    {
+      "action": "http://www.w3.org/ns/tdmrep/tdm",
+      "constraint": [
+        {
+          "note": "All scraping, AI training, cloning, and automated extraction prohibited."
+        }
+      ]
+    }
+  ]
+}
